@@ -1,15 +1,20 @@
-import json
-from operator import and_
-from urllib.parse import uses_relative
-import uuid
-from flask import jsonify, request
-from flask_restful import Resource
-from flask_restful import fields, marshal_with
-from flask_restful import reqparse
-from sqlalchemy import false, true
-from application.database import db
-from application.models import Deck, Review, User, Card
 from application.validation import BusinessValidationError
+from application.models import Deck, Review, User, Card
+from application.database import db
+from operator import and_
+from sqlalchemy import false, true
+from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import create_access_token
+from flask_restful import reqparse
+from flask_restful import fields, marshal_with
+from flask_restful import Resource
+from flask import jsonify, request
+import json
+import uuid
+
+import bcrypt
+
 
 # ~ HELPER FUNCTIONS
 
@@ -60,18 +65,22 @@ class UserAPI(Resource):
         email = data["email"]
         phone = data["phone"]
 
-        if username is None:
+        if username is None or username == "":
             raise BusinessValidationError(
                 status_code=400, error_message="Username is required")
-        if password is None:
+        if password is "None" or password == "":
             raise BusinessValidationError(
                 status_code=400, error_message="Password is required")
-        if email is None:
+        if email is None or email == "":
             raise BusinessValidationError(
                 status_code=400, error_message="Email ID is required")
-        if phone is None:
+        if phone is None or email == "":
             raise BusinessValidationError(
                 status_code=400, error_message="Phone Number is required")
+
+        hashed_password = bcrypt.hashpw(
+            password.encode('utf8'), bcrypt.gensalt())
+        print(hashed_password)
 
         user = db.session.query(User).filter(User.username == username).first()
         if user:
@@ -79,7 +88,7 @@ class UserAPI(Resource):
                 status_code=400, error_message="Duplicate user")
 
         new_user = User(user_id=ID, username=username,
-                        password=password, email_id=email, phone_no=phone)
+                        password=hashed_password, email_id=email, phone_no=phone)
         db.session.add(new_user)
         db.session.commit()
 
@@ -98,6 +107,7 @@ class UserAPI(Resource):
 class DeckAPI(Resource):
 
     @marshal_with(deck_output_fields)
+    @jwt_required()
     def get(self):
         args = request.args
         user_id = args.get("user_id", None)
@@ -116,6 +126,7 @@ class DeckAPI(Resource):
 
         return deck
 
+    @jwt_required()
     def post(self):
         data = request.json
         ID = str(uuid.uuid4()).replace("-", "")
@@ -152,6 +163,7 @@ class DeckAPI(Resource):
         return jsonify(return_value)
 
     @marshal_with(deck_output_fields)
+    @jwt_required()
     def put(self, deck_id):
         if deck_id is None:
             raise BusinessValidationError(
@@ -171,6 +183,7 @@ class DeckAPI(Resource):
         raise BusinessValidationError(
             status_code=400, error_message="KeyError : deck_name OR JSON body required")
 
+    @jwt_required()
     def delete(self, deck_id):
         deck = db.session.query(Deck).filter(Deck.deck_id == deck_id).first()
         print(deck)
@@ -200,11 +213,13 @@ class DeckAPI(Resource):
 class CardAPI(Resource):
 
     @marshal_with(card_output_fields)
+    @jwt_required()
     def get(self, deck_id):
         cards = db.session.query(Card).filter(Card.deck_id == deck_id).all()
         print(cards)
         return cards
 
+    @jwt_required()
     def post(self, deck_id):
         if deck_id is None:
             raise BusinessValidationError(
@@ -247,6 +262,7 @@ class CardAPI(Resource):
         return jsonify(return_value)
 
     @marshal_with(card_output_fields)
+    @jwt_required()
     def put(self):
         args = request.args
         data = request.json
@@ -266,6 +282,7 @@ class CardAPI(Resource):
         db.session.commit()
         return card
 
+    @jwt_required()
     def delete(self):
         card_id = request.args.get("card_id", None)
         card = db.session.query(Card).filter(Card.card_id == card_id).first()
@@ -298,11 +315,13 @@ class CardAPI(Resource):
 class ReviewAPI(Resource):
 
     @marshal_with(review_output_fields)
+    @jwt_required()
     def get(self, deck_id):
         review = db.session.query(Review).filter(
             Review.deck_id == deck_id).first()
         return review
 
+    @jwt_required()
     def post(self, deck_id):
         data = request.json
         ID = deck_id + "review"
@@ -361,6 +380,7 @@ class ReviewAPI(Resource):
         return jsonify(return_value)
 
     @marshal_with(review_output_fields)
+    @jwt_required()
     def put(self, deck_id):
         data = request.json
         new_total_q = data['total_q']
@@ -388,6 +408,7 @@ class ReviewAPI(Resource):
         db.session.commit()
         return review
 
+    @jwt_required()
     def delete(self, deck_id):
         try:
             db.session.query(Review).filter(Review.deck_id ==
