@@ -1,7 +1,8 @@
 import json
 from application.validation import BusinessValidationError
 from application.models import Deck, Review, User, Card
-from sqlalchemy import and_
+from application.database import db
+
 from flask import request
 from application.models import *
 from application.database import db
@@ -16,11 +17,14 @@ from flask import send_from_directory
 
 import os
 import bcrypt
+import pandas as pd
+import numpy as np
+import uuid
 
 # from flask import session
 
-
 base_url = 'http://192.168.1.9:5000/'
+uploads = app.config["UPLOAD_FOLDER"]
 
 #~ LOGIN
 
@@ -68,27 +72,61 @@ def sample():
     }
     return jsonify(return_value)
 
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'txt', 'csv', 'xls', 'xlsx'}
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def parse_file(file, file_type, deck_id) :
+    if(file_type == "csv") :
+        file_path = "{}\{}".format(uploads, file)
+        print("***********REACHED***********", file_path, file_type)
+        df = pd.read_csv(file_path, on_bad_lines='skip')
 
+    elif(file_type == "xlsx" or file_type == "xls") :
+        df = pd.read_excel(file)
+
+    questions = df["questions"].tolist()
+    answers = df["answers"].tolist()
+
+    for i in range(0, len(questions)):
+        ID = str(uuid.uuid4()).replace("-", "")
+        if(qa_check(questions[i], answers[i], deck_id)):
+            new_card = Card(
+                card_id=ID, question=questions[i], answer=answers[i], deck_id=deck_id)
+            db.session.add(new_card)
+            db.session.commit()
+        else:
+            continue
+    return
 
 @app.route('/upload', methods=["POST"])
 @jwt_required()
 def upload() :
-    for file in request.files.getlist("File") :
-        print(file)
-        if file.filename == '' :
-            return "ENTER FILENAME"
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    
-    print("FORM : ", request.form)
-    print("DATA : ", request.data)
+    deck_id = request.form.get("deck_id")
+    file = request.files.get("File")
+    print(file)
+    if file.filename == '' :
+        return "ENTER FILENAME"
+    if file and allowed_file(file.filename):
+        # fn = "QA_Upload_" + deck_id
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        print("FILENAME : ", filename, "EXTENSION : ", file.filename.split(".")[1])
+        file_type = file.filename.split(".")[1]
+        parse_file(filename, file_type, deck_id)
+
     return "UPLOAD"
 
 @app.route("/download/<path:name>", methods=["GET"])
 def download_file(name):
     return send_from_directory(app.config['UPLOAD_FOLDER'], name, as_attachment=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def qa_check(q, a, deck_id):
+    cards = db.session.query(Card).filter(Deck.deck_id == deck_id).all()
+    for card in cards:
+        if(q == card.question):
+            return False
+        if(a == card.answer):
+            return False
+    return True
