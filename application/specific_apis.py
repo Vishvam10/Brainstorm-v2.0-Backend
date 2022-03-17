@@ -10,6 +10,10 @@ from flask_jwt_extended import get_jwt_identity
 from flask_jwt_extended import create_access_token
 from flask import current_app as app
 from flask import Flask, jsonify, request, redirect, url_for
+
+from werkzeug.utils import secure_filename
+from flask import send_from_directory
+
 import os
 import bcrypt
 
@@ -22,7 +26,7 @@ base_url = 'http://192.168.1.9:5000/'
 
 
 @app.route("/login", methods=["POST"])
-def home():
+def login():
     data = request.json
     username = data["username"]
     password = data["password"]
@@ -63,3 +67,28 @@ def sample():
         "current_user": current_user
     }
     return jsonify(return_value)
+
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/upload', methods=["POST"])
+@jwt_required()
+def upload() :
+    for file in request.files.getlist("File") :
+        print(file)
+        if file.filename == '' :
+            return "ENTER FILENAME"
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    
+    print("FORM : ", request.form)
+    print("DATA : ", request.data)
+    return "UPLOAD"
+
+@app.route("/download/<path:name>", methods=["GET"])
+def download_file(name):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], name, as_attachment=True)

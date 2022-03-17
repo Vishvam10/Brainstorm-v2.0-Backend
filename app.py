@@ -15,7 +15,7 @@ if __name__ == "__main__":
     my_app = None
     api = None
 
-    my_app = Flask(__name__, template_folder="templates")
+    my_app = Flask(__name__)
     my_app.config.from_object(LocalDevelopmentConfig)
     jwt = JWTManager(my_app)
     db.init_app(my_app)
