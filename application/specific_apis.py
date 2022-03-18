@@ -26,8 +26,9 @@ import uuid
 base_url = 'http://192.168.1.9:5000/'
 uploads = app.config["UPLOAD_FOLDER"]
 
-#~ LOGIN
+ALLOWED_EXTENSIONS = {'txt', 'csv', 'xls', 'xlsx'}
 
+#~ LOGIN
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -63,40 +64,6 @@ def login():
     return jsonify(return_value)
 
 
-@app.route('/protected', methods=["GET"])
-@jwt_required()
-def sample():
-    current_user = get_jwt_identity()
-    return_value = {
-        "current_user": current_user
-    }
-    return jsonify(return_value)
-
-ALLOWED_EXTENSIONS = {'txt', 'csv', 'xls', 'xlsx'}
-
-def parse_file(file, file_type, deck_id) :
-    if(file_type == "csv") :
-        file_path = "{}\{}".format(uploads, file)
-        print("***********REACHED***********", file_path, file_type)
-        df = pd.read_csv(file_path, on_bad_lines='skip')
-
-    elif(file_type == "xlsx" or file_type == "xls") :
-        df = pd.read_excel(file)
-
-    questions = df["questions"].tolist()
-    answers = df["answers"].tolist()
-
-    for i in range(0, len(questions)):
-        ID = str(uuid.uuid4()).replace("-", "")
-        if(qa_check(questions[i], answers[i], deck_id)):
-            new_card = Card(
-                card_id=ID, question=questions[i], answer=answers[i], deck_id=deck_id)
-            db.session.add(new_card)
-            db.session.commit()
-        else:
-            continue
-    return
-
 @app.route('/upload', methods=["POST"])
 @jwt_required()
 def upload() :
@@ -113,7 +80,7 @@ def upload() :
         file_type = file.filename.split(".")[1]
         parse_file(filename, file_type, deck_id)
 
-    return "UPLOAD"
+    return "FILE UPLOADED"
 
 @app.route("/download/<path:name>", methods=["GET"])
 def download_file(name):
@@ -122,11 +89,3 @@ def download_file(name):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def qa_check(q, a, deck_id):
-    cards = db.session.query(Card).filter(Deck.deck_id == deck_id).all()
-    for card in cards:
-        if(q == card.question):
-            return False
-        if(a == card.answer):
-            return False
-    return True
