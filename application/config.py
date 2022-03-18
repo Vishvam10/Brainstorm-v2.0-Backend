@@ -13,6 +13,8 @@ class Config():
     UPLOAD_FOLDER = os.path.join(APP_ROOT, UPLOAD_FOLD)
     JWT_SECRET_KEY = "secret-key-vishvam-1025-21f1005939"
     JWT_ACCESS_TOKEN_EXPIRES = 14400
+    CELERY_BROKER_URL = "redis://localhost:6379"
+    CELERY_RESULT_BACKEND = "redis://localhost:6379"
 
 
 class LocalDevelopmentConfig(Config):
@@ -25,3 +27,5 @@ class LocalDevelopmentConfig(Config):
     UPLOAD_FOLDER = os.path.join(APP_ROOT, UPLOAD_FOLD)
     JWT_SECRET_KEY = "secret-key-vishvam-1025-21f1005939"
     JWT_ACCESS_TOKEN_EXPIRES = 14400
+    CELERY_BROKER_URL = "redis://localhost:6379"
+    CELERY_RESULT_BACKEND = "redis://localhost:6379"
