@@ -68,7 +68,7 @@ class UserAPI(Resource):
         if username is None or username == "":
             raise BusinessValidationError(
                 status_code=400, error_message="Username is required")
-        if password is "None" or password == "":
+        if password is None or password == "":
             raise BusinessValidationError(
                 status_code=400, error_message="Password is required")
         if email is None or email == "":
@@ -114,7 +114,6 @@ class DeckAPI(Resource):
         users = db.session.query(User).filter(
             User.user_id == user_id
         ).first()
-        print(users)
         if(users is None):
             raise BusinessValidationError(
                 status_code=404, error_message="Invalid User ID")
@@ -124,6 +123,7 @@ class DeckAPI(Resource):
         deck = db.session.query(Deck).filter(
             Deck.user_id == user_id).all()
 
+        print(deck)
         return deck
 
     @jwt_required()
@@ -165,23 +165,27 @@ class DeckAPI(Resource):
     @marshal_with(deck_output_fields)
     @jwt_required()
     def put(self, deck_id):
+        data = request.json
         if deck_id is None:
             raise BusinessValidationError(
                 status_code=400, error_message="Deck ID is required")
 
-        deck = db.session.query(Deck).filter(Deck.deck_id == deck_id).first()
-        if(request.json):
+        if(data):
+            user_id = data["user_id"]
             new_name = request.json["deck_name"]
-            if(new_name is None or new_name == ""):
-                raise BusinessValidationError(
-                    status_code=400, error_message="New Deck Name is required")
+            decks = db.session.query(Deck).filter(Deck.user_id == user_id).all()
+            for deck in decks :
+                if(deck.deck_name == new_name) :
+                    raise BusinessValidationError(
+                        status_code=400, error_message="Deck name already exists")
 
             deck.deck_name = new_name
             db.session.add(deck)
             db.session.commit()
             return deck
+            
         raise BusinessValidationError(
-            status_code=400, error_message="KeyError : deck_name OR JSON body required")
+            status_code=400, error_message="KeyError : Deck name or JSON body required")
 
     @jwt_required()
     def delete(self, deck_id):
@@ -234,7 +238,7 @@ class CardAPI(Resource):
         data = request.json
         questions = data['questions']
         answers = data['answers']
-
+        extra_message = ""
         if questions is None:
             raise BusinessValidationError(
                 status_code=400, error_message="Questions are required")
@@ -242,7 +246,7 @@ class CardAPI(Resource):
             raise BusinessValidationError(
                 status_code=400, error_message="Answers are required")
 
-        # print(questions, type(questions), len(questions))
+        print(questions, type(questions), len(questions))
         for i in range(0, len(questions)):
             ID = str(uuid.uuid4()).replace("-", "")
             if(qa_check(questions[i], answers[i], deck_id)):
@@ -251,10 +255,12 @@ class CardAPI(Resource):
                 db.session.add(new_card)
                 db.session.commit()
             else:
+                extra_message = "Duplicates found and ignore. "
                 continue
-
+                
+        message = extra_message + " Cards created successfully"
         return_value = {
-            "message": "Cards Created",
+            "message": message,
             "status": 200,
             "deck_id": ID,
         }
