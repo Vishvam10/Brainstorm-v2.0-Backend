@@ -4,16 +4,14 @@ from application.database import db
 from operator import and_
 from sqlalchemy import false, true
 from flask_jwt_extended import jwt_required
-from flask_jwt_extended import get_jwt_identity
-from flask_jwt_extended import create_access_token
-from flask_restful import reqparse
 from flask_restful import fields, marshal_with
 from flask_restful import Resource
 from flask import jsonify, request
-import json
+
 import uuid
 
 import bcrypt
+import datetime as dt
 
 
 # ~ HELPER FUNCTIONS
@@ -123,7 +121,6 @@ class DeckAPI(Resource):
         deck = db.session.query(Deck).filter(
             Deck.user_id == user_id).all()
 
-        print(deck)
         return deck
 
     @jwt_required()
@@ -336,8 +333,9 @@ class ReviewAPI(Resource):
         medium_q = data['medium_q']
         hard_q = data['hard_q']
         score = data['score']
-        last_reviewed = data['last_reviewed']
-        past_scores = data['past_scores']
+        now = dt.datetime.now().strftime("%b-%m-%Y %H:%M %p")
+        last_reviewed = now
+        past_scores = "{}".format(score)
 
         if total_q is None:
             raise BusinessValidationError(
@@ -360,10 +358,13 @@ class ReviewAPI(Resource):
         if past_scores is None:
             raise BusinessValidationError(
                 status_code=400, error_message="Past scores are required")
-
+        # review = db.session.query(Review).filter(Review.deck_id == deck_id).first()
         new_review = Review(review_id=ID, deck_id=deck_id, total_q=total_q, easy_q=easy_q, medium_q=medium_q,
                             hard_q=hard_q, score=score, last_reviewed=last_reviewed, past_scores=past_scores)
-
+        # if(review.review_id == ID) :
+        #     raise BusinessValidationError(
+        #         status_code=409, error_message="Review already present. Use PUT method to update it.")
+        
         try:
             db.session.add(new_review)
             db.session.commit()
@@ -371,11 +372,12 @@ class ReviewAPI(Resource):
             print(e)
             return_value = {
                 "message": "Review already present. Use PUT method to update it.",
-                "status": 200,
+                "status": 409,
                 "review_id": ID,
                 "deck_id": deck_id,
             }
             return jsonify(return_value)
+            
 
         return_value = {
             "message": "Review Created",
@@ -394,9 +396,7 @@ class ReviewAPI(Resource):
         new_medium_q = data['medium_q']
         new_hard_q = data['hard_q']
         new_score = data['score']
-        new_last_reviewed = data['last_reviewed']
-        new_past_scores = data['past_scores']
-
+        now = dt.datetime.now().strftime("%b-%m-%Y %H:%M %p")
         review = db.session.query(Review).filter(
             Review.deck_id == deck_id).first()
         if(review is None):
@@ -407,9 +407,8 @@ class ReviewAPI(Resource):
         review.medium_q = new_medium_q
         review.hard_q = new_hard_q
         review.score = new_score
-        review.last_reviewed = new_last_reviewed
-        review.past_scores = new_past_scores
-
+        review.last_reviewed = now
+        review.past_scores = review.past_scores + "," + str(new_score)
         db.session.add(review)
         db.session.commit()
         return review

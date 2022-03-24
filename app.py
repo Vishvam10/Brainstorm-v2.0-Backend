@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_restful import Api
+from application import workers
 from application.base_apis import CardAPI, DeckAPI, ReviewAPI
 from application.config import LocalDevelopmentConfig
 from application.database import db
@@ -8,25 +9,50 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 # from waitress import serve
 
+app = None
+api = None
+celery = None
 
-if __name__ == "__main__":
-    my_app = None
-    api = None
+def create_app() :
+    app = Flask(__name__)
+    app.config.from_object(LocalDevelopmentConfig)
 
-    my_app = Flask(__name__)
-    my_app.config.from_object(LocalDevelopmentConfig)
-    jwt = JWTManager(my_app)
-    db.init_app(my_app)
-    CORS(my_app)
-    api = Api(my_app)
-    my_app.app_context().push()
+    jwt = JWTManager(app)    
+    app.app_context().push()
+    
+    db.init_app(app)
+    app.app_context().push()
+    
+    CORS(app)
+    app.app_context().push()
+    
+    api = Api(app)
+    app.app_context().push()
+    
+    # Create celery   
+    celery = workers.celery
 
-    from application.specific_apis import *
-    from application.base_apis import *
-    api.add_resource(UserAPI, "/api/user")
-    api.add_resource(DeckAPI, "/api/deck", "/api/deck/<string:deck_id>")
-    api.add_resource(CardAPI, "/api/card", "/api/card/<string:deck_id>")
-    api.add_resource(ReviewAPI, "/api/review/<string:deck_id>")
-    # port = int(os.environ.get('PORT', 33507))
-    # serve(my_app, host="0.0.0.0", port=port)
-    my_app.run(host='0.0.0.0')
+    # Update with configuration
+    celery.conf.update(
+        broker_url = app.config["CELERY_BROKER_URL"],
+        result_backend = app.config["CELERY_RESULT_BACKEND"],
+    )
+
+    celery.Task = workers.ContextTask
+    app.app_context().push()
+
+    return app, api, celery
+
+app, api, celery = create_app()
+
+
+from application.specific_apis import *
+from application.base_apis import *
+
+api.add_resource(UserAPI, "/api/user")
+api.add_resource(DeckAPI, "/api/deck", "/api/deck/<string:deck_id>")
+api.add_resource(CardAPI, "/api/card", "/api/card/<string:deck_id>")
+api.add_resource(ReviewAPI, "/api/review/<string:deck_id>")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0')

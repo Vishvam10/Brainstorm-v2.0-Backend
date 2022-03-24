@@ -1,3 +1,6 @@
 venv
 _pycache_
 *.pyc
+media
+*.rdb
+*.pdf
