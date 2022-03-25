@@ -20,6 +20,7 @@ import os
 import bcrypt
 import pandas as pd
 import numpy as np
+import statistics as st
 import uuid
 
 # from flask import session
@@ -59,7 +60,7 @@ def login():
     }
     return jsonify(return_value)
 
-# _ This should be a Celery Job
+# _ Uses Celery Jobs
 
 @app.route('/api/upload', methods=["POST"])
 @jwt_required()
@@ -93,10 +94,8 @@ def upload():
 
     return jsonify(return_value)
 
-# _ This should be a Celery Job 
-
-
 @app.route("/api/download/<string:deck_id>", methods=["POST"])
+@jwt_required()
 def download_file(deck_id):
     data = request.json
     file_type = data["file_type"]
@@ -109,8 +108,6 @@ def download_file(deck_id):
     }
 
     return jsonify(return_value)
-
-
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -147,3 +144,30 @@ def send() :
 # t = "./../email_templates/welcome.html"
 # a = "qa.csv"
 
+
+@app.route('/api/performance/<string:user_id>', methods=["GET"])
+def performance(user_id) :
+    scores = []
+    decks = db.session.query(Deck).filter(Deck.user_id == user_id).all()
+    for deck in decks :
+        reviews = db.session.query(Review).filter(Review.deck_id == deck.deck_id).all()
+        for review in reviews :
+            rev = review.__dict__
+            scores.append({"deck_name" : deck.deck_name, "score" : rev["score"]})
+            
+    avg_score = round(float(sum(score['score'] for score in scores)) / len(scores), 2)
+    max_score = max(scores, key=lambda d: d['score'])
+    min_score = min(scores, key=lambda d: d['score'])
+    review_required = []
+    for x in scores :
+        s = round(x["score"],2)
+        if(s < avg_score) :
+            review_required.append(x["deck_name"])
+    return_value = {
+        "max_score" : max_score,
+        "min_score" : min_score,
+        "avg_score" : avg_score,
+        "review_required" : review_required
+    }
+    return jsonify(return_value)
+    
