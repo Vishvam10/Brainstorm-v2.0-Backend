@@ -16,6 +16,7 @@ from flask import jsonify, request
 
 from werkzeug.utils import secure_filename
 from flask import send_file
+from flask import send_from_directory
 
 import os
 import bcrypt
@@ -110,21 +111,17 @@ def download_file(deck_id):
         cards = db.session.query(Card).filter(Card.deck_id == deck_id).all()
         
         data = []
-        count = 0
         for card in cards :
             card_data = card.__dict__
             question = card_data["question"]
             answer = card_data["answer"]
             data.append({question, answer})
-            count += 1
-        count = 0
 
         df  = pd.DataFrame.from_records(data)
         df.columns = ["Question", "Answer"]
         df.to_csv(fn, index=False)   
 
-        return send_file(fn, as_attachment=False)
-        # return send_from_directory(media, fn, as_attachment=True)
+        return send_file(fn, mimetype='text/csv', attachment_filename=fn, as_attachment=True)
     
     return_value = {
         "message": "Invalid file type" 
