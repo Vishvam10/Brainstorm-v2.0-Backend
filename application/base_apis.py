@@ -322,6 +322,13 @@ class ReviewAPI(Resource):
     def get(self, deck_id):
         review = db.session.query(Review).filter(
             Review.deck_id == deck_id).first()
+        if(deck_id is None):
+            raise BusinessValidationError(
+                status_code=400, error_message="Deck ID is required")
+        if(review is None):
+            raise BusinessValidationError(
+                status_code=200, error_message="No review exists for now")
+            
         return review
 
     @jwt_required()

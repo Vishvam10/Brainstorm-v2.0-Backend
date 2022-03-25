@@ -10,8 +10,10 @@ class Config():
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CORS_HEADERS = "Content-Type"
     APP_ROOT = os.path.dirname(os.path.abspath(__file__))
-    UPLOAD_FOLD = os.getcwd() + '\media'
-    UPLOAD_FOLDER = os.path.join(APP_ROOT, UPLOAD_FOLD)
+    MEDIA_FOLD = os.getcwd() + '/media'
+    MEDIA_FOLDER = os.path.join(APP_ROOT, MEDIA_FOLD)
+    REPORTS_FOLD = os.getcwd() + '/reports'
+    REPORTS_FOLDER = os.path.join(APP_ROOT, REPORTS_FOLD)
     JWT_SECRET_KEY = "secret-key-vishvam-1025-21f1005939"
     JWT_ACCESS_TOKEN_EXPIRES = 21600 # 6hrs
     SMTP_SERVER_HOST = "localhost"
@@ -29,8 +31,10 @@ class LocalDevelopmentConfig(Config):
     DEBUG = True
     CORS_HEADERS = "Content-Type"
     APP_ROOT = os.path.dirname(os.path.abspath(__file__))
-    UPLOAD_FOLD = os.getcwd() + '\media'
-    UPLOAD_FOLDER = os.path.join(APP_ROOT, UPLOAD_FOLD)
+    MEDIA_FOLD = os.getcwd() + '/media'
+    MEDIA_FOLDER = os.path.join(APP_ROOT, MEDIA_FOLD)
+    REPORTS_FOLD = os.getcwd() + '/reports'
+    REPORTS_FOLDER = os.path.join(APP_ROOT, REPORTS_FOLD)
     JWT_SECRET_KEY = "secret-key-vishvam-1025-21f1005939"
     JWT_ACCESS_TOKEN_EXPIRES = 21600 # 6hrs
     SMTP_SERVER_HOST = "localhost"

@@ -45,9 +45,9 @@ def create_app() :
 
 app, api, celery = create_app()
 
-
 from application.specific_apis import *
 from application.base_apis import *
+
 
 api.add_resource(UserAPI, "/api/user")
 api.add_resource(DeckAPI, "/api/deck", "/api/deck/<string:deck_id>")

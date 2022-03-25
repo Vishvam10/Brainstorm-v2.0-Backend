@@ -1,8 +1,9 @@
+from application import tasks
 from application.validation import BusinessValidationError
 from application.models import Deck, Review, User, Card
 from application.database import db
 from application.emails import *
-
+from application.tasks import *
 
 from flask import request
 from application.models import *
@@ -14,7 +15,7 @@ from flask import current_app as app
 from flask import jsonify, request
 
 from werkzeug.utils import secure_filename
-from flask import send_from_directory
+from flask import send_file
 
 import os
 import bcrypt
@@ -25,7 +26,7 @@ import uuid
 # from flask import session
 
 base_url = 'http://192.168.1.9:5000/'
-uploads = app.config["UPLOAD_FOLDER"]
+media = app.config["MEDIA_FOLDER"]
 
 ALLOWED_EXTENSIONS = {'txt', 'csv', 'xls', 'xlsx'}
 
@@ -74,23 +75,63 @@ def upload():
         file_type = file.filename.split(".")[1]
         fn = "QA_Upload_" + deck_id + "." + file_type 
         uploaded_filename = secure_filename(fn)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], uploaded_filename))
-        # parse_file(filename, file_type, deck_id)
+        file.save(os.path.join(media, uploaded_filename))
+        res = parse_file.delay(fn, file_type, deck_id)
+    if(res) :
+        return_value = {
+            "message": "Imported successfully",
+            "file_name" : uploaded_filename,
+            "file_type" : file_type,
+            "status": 200,
+        }    
+    else :
+        return_value = {
+            "message": "Import failed",
+            "file_name" : uploaded_filename,
+            "file_type" : file_type,
+            "status": 500,
+        }
 
-    return_value = {
-        "message": "Imported successfully",
-        "file_name" : uploaded_filename,
-        "file_type" : file_type,
-        "status": 200,
-    }
     return jsonify(return_value)
 
 # _ This should be a Celery Job 
 
-@app.route("/api/download/<path:name>", methods=["GET"])
-def download_file(name):
-    # fn = "QA_Upload_" + deck_id + "." + file_type
-    return send_from_directory(app.config['UPLOAD_FOLDER'], name, as_attachment=True)
+@app.route("/api/download/<string:deck_id>", methods=["POST"])
+def download_file(deck_id):
+    data = request.json
+    file_type = data["file_type"]
+    return_value = {}
+    if(file_type == "csv" or file_type == "xlsx") :
+        f = "QA_Export_" + deck_id + "." + file_type
+        fn = media + "/" + f
+        print("FILE NAME : ", fn)
+
+        # Create a file out of the deck
+        cards = db.session.query(Card).filter(Card.deck_id == deck_id).all()
+        
+        data = []
+        count = 0
+        for card in cards :
+            card_data = card.__dict__
+            question = card_data["question"]
+            answer = card_data["answer"]
+            data.append({question, answer})
+            count += 1
+        count = 0
+
+        df  = pd.DataFrame.from_records(data)
+        df.columns = ["Question", "Answer"]
+        df.to_csv(fn, index=False)   
+
+        return send_file(fn, as_attachment=False)
+        # return send_from_directory(media, fn, as_attachment=True)
+    
+    return_value = {
+        "message": "Invalid file type" 
+    }
+
+    return jsonify(return_value)
+
 
 
 def allowed_file(filename):
@@ -99,6 +140,7 @@ def allowed_file(filename):
 @app.route('/sample', methods=["GET"])
 @jwt_required()
 def sample() :
+    setup_periodic_tasks.delay()
     return_value = {
         "message": "Reached" 
     }
@@ -109,9 +151,21 @@ def send() :
     data = request.json
     to_address = data["to_address"]
     subject = data["subject"]
-    message = data["message"]
-    send_email(to_address, subject, message)
+    template = "./email_templates/welcome.html"
+    d = {
+        "user_name" : "Vishvam"
+    }
+    msg = format_message(template_file=template, data=d)
+    
+    send_email.delay(to_address, subject, msg, content="html")
     return_value = {
         "message": "Email Sent" 
     }
     return jsonify(return_value)
+
+# to = "sagowa2690@kuruapp.com"
+# s = "Sample"
+# m = "<h1>asdfajsld;kfj sd; asdfjas ldjaskd asdf</h1>"
+# t = "./../email_templates/welcome.html"
+# a = "qa.csv"
+
