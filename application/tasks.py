@@ -4,11 +4,15 @@ from application.database import db
 
 from datetime import datetime
 from flask import current_app as app
+from flask import jsonify
 
 from email import encoders, message
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+from flask import send_file
+
 
 import smtplib
 import pandas as pd
@@ -64,7 +68,28 @@ def send_email(to_address, subject, message, content="text", attachment_file=Non
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(10.0, print_current_time_job.s(), name='add every 10')
 
-    
+@celery.task
+def convert_and_send_file(file_type, deck_id) :
+    if(file_type == "csv" or file_type == "xlsx") :
+        f = "QA_Export_" + deck_id + "." + file_type
+        fn = media + "/" + f
+        print("FILE NAME : ", fn)
+
+        # Create a file out of the deck
+        cards = db.session.query(Card).filter(Card.deck_id == deck_id).all()
+        
+        data = []
+        for card in cards :
+            card_data = card.__dict__
+            question = card_data["question"]
+            answer = card_data["answer"]
+            data.append({question, answer})
+
+        df  = pd.DataFrame.from_records(data)
+        df.columns = ["Question", "Answer"]
+        df.to_csv(fn, index=False)   
+        return fn
+    return "Invalid File Type"
 
 @celery.task()
 def print_current_time_job():

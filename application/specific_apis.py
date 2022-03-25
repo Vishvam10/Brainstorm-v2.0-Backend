@@ -15,8 +15,6 @@ from flask import current_app as app
 from flask import jsonify, request
 
 from werkzeug.utils import secure_filename
-from flask import send_file
-from flask import send_from_directory
 
 import os
 import bcrypt
@@ -97,30 +95,13 @@ def upload():
 
 # _ This should be a Celery Job 
 
+
 @app.route("/api/download/<string:deck_id>", methods=["POST"])
 def download_file(deck_id):
     data = request.json
     file_type = data["file_type"]
-    return_value = {}
-    if(file_type == "csv" or file_type == "xlsx") :
-        f = "QA_Export_" + deck_id + "." + file_type
-        fn = media + "/" + f
-        print("FILE NAME : ", fn)
-
-        # Create a file out of the deck
-        cards = db.session.query(Card).filter(Card.deck_id == deck_id).all()
-        
-        data = []
-        for card in cards :
-            card_data = card.__dict__
-            question = card_data["question"]
-            answer = card_data["answer"]
-            data.append({question, answer})
-
-        df  = pd.DataFrame.from_records(data)
-        df.columns = ["Question", "Answer"]
-        df.to_csv(fn, index=False)   
-
+    fn = convert_and_send_file.delay(file_type=file_type, deck_id=deck_id).get()
+    if(fn != "Invalid File Type") :
         return send_file(fn, mimetype='text/csv', attachment_filename=fn, as_attachment=True)
     
     return_value = {
