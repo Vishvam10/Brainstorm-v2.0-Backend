@@ -158,16 +158,18 @@ def performance(user_id) :
     avg_score = round(float(sum(score['score'] for score in scores)) / len(scores), 2)
     max_score = max(scores, key=lambda d: d['score'])
     min_score = min(scores, key=lambda d: d['score'])
-    review_required = []
+    revision_required = []
     for x in scores :
         s = round(x["score"],2)
         if(s < avg_score) :
-            review_required.append(x["deck_name"])
+            revision_required.append(x["deck_name"])
     return_value = {
-        "max_score" : max_score,
-        "min_score" : min_score,
+        "max_score" : max_score["score"],
+        "max_score_deck" : max_score["deck_name"],
+        "min_score" : min_score["score"],
+        "min_score_deck" : min_score["deck_name"],
         "avg_score" : avg_score,
-        "review_required" : review_required
+        "revision_required" : revision_required
     }
     return jsonify(return_value)
     
