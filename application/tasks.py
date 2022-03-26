@@ -1,3 +1,4 @@
+from application.emails import format_message
 from application.workers import celery
 from application.models import Deck, Review, User, Card
 from application.database import db
@@ -64,9 +65,31 @@ def send_email(to_address, subject, message, content="text", attachment_file=Non
     s.quit()
     return True
 
+@celery.task()
+def send_periodic_email() :
+    to = "sagowa2690@kuruapp.com"
+    s = "Periodic Email"
+    t = "./email_templates/welcome.html"
+    d = {
+        "user_name" : "Vishvam"
+    }
+    m = format_message(template_file=t, data=d)
+    msg = MIMEMultipart()
+    msg["From"] = SENDER_ADDRESS
+    msg["To"] = to
+    msg["Subject"] = s
+    msg.attach(MIMEText(m, "html"))
+    s = smtplib.SMTP(host=SMTP_SERVER_HOST, port=SMTP_SERVER_PORT)
+    s.login(SENDER_ADDRESS, SENDER_PASSWORD)
+    s.send_message(msg)
+    s.quit()
+    return True
+    
+
 @celery.on_after_finalize.connect
-def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(10.0, print_current_time_job.s(), name='add every 10')
+def print_time(sender, **kwargs):
+    sender.add_periodic_task(10.0, print_current_time_job.s(), name='PRINT TIME')
+    sender.add_periodic_task(10.0, send_periodic_email.s(), name='SEND EMAILS')
 
 @celery.task
 def convert_and_send_file(file_type, deck_id) :

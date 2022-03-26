@@ -138,12 +138,6 @@ def send() :
     }
     return jsonify(return_value)
 
-# to = "sagowa2690@kuruapp.com"
-# s = "Sample"
-# m = "<h1>asdfajsld;kfj sd; asdfjas ldjaskd asdf</h1>"
-# t = "./../email_templates/welcome.html"
-# a = "qa.csv"
-
 
 @app.route('/api/performance/<string:user_id>', methods=["GET"])
 def performance(user_id) :
@@ -154,8 +148,9 @@ def performance(user_id) :
         for review in reviews :
             rev = review.__dict__
             scores.append({"deck_name" : deck.deck_name, "score" : rev["score"]})
-            
-    avg_score = round(float(sum(score['score'] for score in scores)) / len(scores), 2)
+    avg_score = 0   
+    if(len(scores) > 1 ) :
+        avg_score = round(float(sum(score['score'] for score in scores)) / len(scores), 2)
     max_score = max(scores, key=lambda d: d['score'])
     min_score = min(scores, key=lambda d: d['score'])
     revision_required = []
