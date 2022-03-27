@@ -243,8 +243,12 @@ def parse_file(file, file_type, deck_id):
 @celery.on_after_finalize.connect
 def print_time(sender, **kwargs):
     sender.add_periodic_task(crontab("*/2 * * * *"), print_current_time_job.s(), name='PRINT CURRENT TIME')
-    sender.add_periodic_task(crontab("*/1 * * * *"), send_performance_reports.s(), name='SEND PERFORMANCE REPORT EMAILS')
-    sender.add_periodic_task(crontab("*/2 * * * *"), reminder_bot.s(), name='SEND REMINDER THROUGH GOOGLE CHAT')
+
+    # Monthly Report Generation
+    sender.add_periodic_task(crontab("0 0 1 * *"), send_performance_reports.s(), name='SEND PERFORMANCE REPORT EMAILS')
+    
+    # Daily Reminder at 10:30 AM through Google Chat
+    sender.add_periodic_task(crontab("30 10 * * *"), reminder_bot.s(), name='SEND REMINDER THROUGH GOOGLE CHAT')
 
 
 
