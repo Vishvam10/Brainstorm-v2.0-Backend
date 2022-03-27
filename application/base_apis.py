@@ -8,6 +8,8 @@ from flask_restful import fields, marshal_with
 from flask_restful import Resource
 from flask import jsonify, request
 
+from app import cache
+
 import uuid
 
 import bcrypt
@@ -65,7 +67,6 @@ class UserAPI(Resource):
         users = db.session.query(User).all()
         return users
 
-
     def post(self):
         ID = str(uuid.uuid4()).replace("-", "")
         data = request.json
@@ -117,6 +118,7 @@ class DeckAPI(Resource):
 
     @marshal_with(deck_output_fields)
     @jwt_required()
+    @cache.memoize(50)
     def get(self):
         args = request.args
         user_id = args.get("user_id", None)
@@ -226,6 +228,7 @@ class CardAPI(Resource):
 
     @marshal_with(card_output_fields)
     @jwt_required()
+    @cache.memoize(50)
     def get(self, deck_id):
         cards = db.session.query(Card).filter(Card.deck_id == deck_id).all()
         print(cards)
@@ -330,6 +333,7 @@ class ReviewAPI(Resource):
 
     @marshal_with(review_output_fields)
     @jwt_required()
+    @cache.memoize(50)
     def get(self, deck_id):
         review = db.session.query(Review).filter(
             Review.deck_id == deck_id).first()

@@ -25,6 +25,7 @@ import smtplib
 import pandas as pd
 import numpy as np
 import uuid
+import os
 
 from celery.schedules import crontab
 print("crontab ", crontab)
@@ -41,7 +42,7 @@ SENDER_PASSWORD = ""
 
 media = app.config["MEDIA_FOLDER"]
 
-# _ CELERY TASKS 
+# _ CELERY TASKS - For the App
 
 @celery.task()
 def send_email(to_address, subject, message, content="text", attachment_file=None) :
@@ -137,12 +138,13 @@ def send_performance_reports() :
         # 1. Convert data to HTML
         template_file = "./email_templates/performance_report.html"
         HTML_output = format_message(template_file, data=data)
-        # print("******************** FORMATTED MESSAGE **************************", HTML_output, type(HTML_output))
        
         # 2. Create PDF report
-        file_name = "{}_{}_{}".format(user_name, month, str(uuid.uuid4()))
-        attachment_file = create_pdf_report(HTML_output, file_name)
-        
+        ID = str(uuid.uuid4()).replace("-", "")
+        file_name = "{}_{}_{}".format(user_name, month, ID)
+        updated_filename = os.path.join(media, file_name)
+        attachment_file = create_pdf_report(HTML_output, updated_filename)
+        print("UPDATED FILENAME : ", updated_filename)
         # 3. Send as an email attachment
         message = "Your monthly performance report is here"
         send_email.delay(user_email, subject, message, content="text", attachment_file=attachment_file)
@@ -233,12 +235,15 @@ def parse_file(file, file_type, deck_id):
     print("CARDS CREATED FROM FILE")
     return True
 
+# _ CELERY TASKS - For the cleanup 
+# TODO
+
 # _ CELERY SCHEDULER 
 
 @celery.on_after_finalize.connect
 def print_time(sender, **kwargs):
     sender.add_periodic_task(crontab("*/2 * * * *"), print_current_time_job.s(), name='PRINT CURRENT TIME')
-    sender.add_periodic_task(crontab("*/5 * * * *"), send_performance_reports.s(), name='SEND PERFORMANCE REPORT EMAILS')
+    sender.add_periodic_task(crontab("*/1 * * * *"), send_performance_reports.s(), name='SEND PERFORMANCE REPORT EMAILS')
     sender.add_periodic_task(crontab("*/2 * * * *"), reminder_bot.s(), name='SEND REMINDER THROUGH GOOGLE CHAT')
 
 

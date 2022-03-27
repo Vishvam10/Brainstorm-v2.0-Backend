@@ -1,10 +1,10 @@
 from flask import Flask
 from flask_restful import Api
 from application import workers
-from application.base_apis import CardAPI, DeckAPI, ReviewAPI
 from application.config import LocalDevelopmentConfig
 from application.database import db
 from flask_cors import CORS
+from flask_caching import Cache
 
 from flask_jwt_extended import JWTManager
 # from waitress import serve
@@ -12,6 +12,7 @@ from flask_jwt_extended import JWTManager
 app = None
 api = None
 celery = None
+cache = None
 
 def create_app() :
     app = Flask(__name__)
@@ -41,9 +42,12 @@ def create_app() :
     celery.Task = workers.ContextTask
     app.app_context().push()
 
-    return app, api, celery
+    cache = Cache(app)
+    app.app_context().push()
 
-app, api, celery = create_app()
+    return app, api, celery, cache
+
+app, api, celery, cache = create_app()
 
 from application.specific_apis import *
 from application.base_apis import *

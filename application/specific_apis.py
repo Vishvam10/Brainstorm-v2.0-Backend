@@ -14,6 +14,8 @@ from flask import jsonify, request
 
 from werkzeug.utils import secure_filename
 
+from app import cache
+
 import os
 import bcrypt
 import pandas as pd
@@ -59,7 +61,7 @@ def login():
     }
     return jsonify(return_value)
 
-# _ Uses Celery Jobs
+#+ Uses Celery Jobs 
 
 @app.route('/api/upload', methods=["POST"])
 @jwt_required()
@@ -93,6 +95,7 @@ def upload():
 
     return jsonify(return_value)
 
+#+ Uses Celery Jobs 
 
 @app.route("/api/download/<string:deck_id>", methods=["POST"])
 @jwt_required()
@@ -108,9 +111,6 @@ def download_file(deck_id):
     }
 
     return jsonify(return_value)
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/sample', methods=["GET"])
 @jwt_required()
@@ -140,6 +140,7 @@ def send() :
 
 
 @app.route('/api/performance/<string:user_id>', methods=["GET"])
+@cache.memoize(50)
 def performance(user_id) :
     scores = []
     decks = db.session.query(Deck).filter(Deck.user_id == user_id).all()
@@ -169,6 +170,10 @@ def performance(user_id) :
     return jsonify(return_value)
     
 
+#_ HELPER FUNCTIONS 
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def show_diff(seqm):
     output= []

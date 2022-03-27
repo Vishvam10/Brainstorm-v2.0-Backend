@@ -4,8 +4,6 @@ from weasyprint import HTML
 from flask import current_app as app
 from jinja2 import Template
 
-REPORTS = app.config["REPORTS_FOLDER"]
-
 def format_message(template_file, data={}) :
     with open(template_file) as file :
         template = Template(file.read())
@@ -13,6 +11,6 @@ def format_message(template_file, data={}) :
 
 def create_pdf_report(data, name) :
     html = HTML(string=data)
-    file_name = ".reports" + name + ".pdf"
+    file_name = name + ".pdf"
     html.write_pdf(target=file_name)
     return file_name
