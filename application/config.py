@@ -12,8 +12,6 @@ class Config():
     APP_ROOT = os.path.dirname(os.path.abspath(__file__))
     MEDIA_FOLD = os.getcwd() + '/media'
     MEDIA_FOLDER = os.path.join(APP_ROOT, MEDIA_FOLD)
-    REPORTS_FOLD = os.getcwd() + '/reports'
-    REPORTS_FOLDER = os.path.join(APP_ROOT, REPORTS_FOLD)
     JWT_SECRET_KEY = "secret-key-vishvam-1025-21f1005939"
     JWT_ACCESS_TOKEN_EXPIRES = 21600 # 6hrs
     SMTP_SERVER_HOST = "localhost"
@@ -22,6 +20,9 @@ class Config():
     SENDER_PASSWORD = ""
     CELERY_BROKER_URL = "redis://localhost:6379/1"
     CELERY_RESULT_BACKEND = "redis://localhost:6379/2"
+    CACHE_TYPE = "RedisCache"
+    CACHE_REDIS_HOST = "localhost"
+    CACHE_REDIS_PORT = 6379
     
     
 class LocalDevelopmentConfig(Config):
@@ -33,8 +34,6 @@ class LocalDevelopmentConfig(Config):
     APP_ROOT = os.path.dirname(os.path.abspath(__file__))
     MEDIA_FOLD = os.getcwd() + '/media'
     MEDIA_FOLDER = os.path.join(APP_ROOT, MEDIA_FOLD)
-    REPORTS_FOLD = os.getcwd() + '/reports'
-    REPORTS_FOLDER = os.path.join(APP_ROOT, REPORTS_FOLD)
     JWT_SECRET_KEY = "secret-key-vishvam-1025-21f1005939"
     JWT_ACCESS_TOKEN_EXPIRES = 21600 # 6hrs
     SMTP_SERVER_HOST = "localhost"
@@ -43,3 +42,6 @@ class LocalDevelopmentConfig(Config):
     SENDER_PASSWORD = "" 
     CELERY_BROKER_URL = "redis://localhost:6379/1"
     CELERY_RESULT_BACKEND = "redis://localhost:6379/2"
+    CACHE_TYPE = "RedisCache"
+    CACHE_REDIS_HOST = "localhost"
+    CACHE_REDIS_PORT = 6379

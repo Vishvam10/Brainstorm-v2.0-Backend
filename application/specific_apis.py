@@ -1,15 +1,13 @@
-from application import tasks
 from application.validation import BusinessValidationError
 from application.models import Deck, Review, User, Card
 from application.database import db
-from application.emails import *
+from application.helpers import *
 from application.tasks import *
 
 from flask import request
 from application.models import *
 from application.database import db
 from flask_jwt_extended import jwt_required
-from flask_jwt_extended import get_jwt_identity
 from flask_jwt_extended import create_access_token
 from flask import current_app as app
 from flask import jsonify, request
@@ -22,6 +20,7 @@ import pandas as pd
 import numpy as np
 import statistics as st
 import uuid
+import difflib
 
 # from flask import session
 
@@ -93,6 +92,7 @@ def upload():
         }
 
     return jsonify(return_value)
+
 
 @app.route("/api/download/<string:deck_id>", methods=["POST"])
 @jwt_required()
@@ -168,3 +168,21 @@ def performance(user_id) :
     }
     return jsonify(return_value)
     
+
+
+def show_diff(seqm):
+    output= []
+    for opcode, a0, a1, b0, b1 in seqm.get_opcodes():
+        if opcode == 'equal':
+            output.append(seqm.a[a0:a1])
+        elif opcode == 'insert':
+            output.append("<ins>" + seqm.b[b0:b1] + "</ins>")
+        elif opcode == 'delete':
+            output.append("<del>" + seqm.a[a0:a1] + "</del>")
+        elif opcode == 'replace':
+            raise NotImplementedError
+        else:
+            raise RuntimeError
+
+    return ''.join(output)
+

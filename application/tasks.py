@@ -15,6 +15,9 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from json import dumps
+from httplib2 import Http
+
 from flask import send_file
 
 
@@ -38,6 +41,7 @@ SENDER_PASSWORD = ""
 
 media = app.config["MEDIA_FOLDER"]
 
+# _ CELERY TASKS 
 
 @celery.task()
 def send_email(to_address, subject, message, content="text", attachment_file=None) :
@@ -68,9 +72,7 @@ def send_email(to_address, subject, message, content="text", attachment_file=Non
     s.quit()
     return True
 
-# @celery.task()
-# to_address, attachment_file, type
-@app.route("/api/spr")
+@celery.task()
 def send_performance_reports() :
     month = str(dt.datetime.now().strftime("%B"))
     users = db.session.query(User).all()
@@ -145,19 +147,35 @@ def send_performance_reports() :
         message = "Your monthly performance report is here"
         send_email.delay(user_email, subject, message, content="text", attachment_file=attachment_file)
     
+    return True
+
+@celery.task
+def reminder_bot() :
     
-    return_value = {
-        "reached": True
+    # - In the future, should get the webhook URL from the user while signing up
+    webhook_url = "https://chat.googleapis.com/v1/spaces/AAAARWvCKTU/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=tmfkrmHHaNuiWqrH1mG8f2panUvcODZtInv2b5MwHVM%3D"
+	
+    now = dt.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    message = "Hello World - {}".format(now)
+    
+    bot_message = {
+        'text' : message
     }
-    return jsonify(return_value)
-        
-    
 
+    message_headers = {'Content-Type': 'application/json; charset=UTF-8'}
 
-@celery.on_after_finalize.connect
-def print_time(sender, **kwargs):
-    sender.add_periodic_task(10.0, print_current_time_job.s(), name='PRINT TIME')
-    sender.add_periodic_task(10.0, send_performance_reports.s(), name='SEND EMAILS')
+    http_obj = Http()
+
+    http_obj.request(
+        uri=webhook_url,
+        method='POST',
+        headers=message_headers,
+        body=dumps(bot_message),
+    )
+    return_value = {
+        "message": "Message sent."
+    }
+    return True
 
 @celery.task
 def convert_and_send_file(file_type, deck_id) :
@@ -214,6 +232,18 @@ def parse_file(file, file_type, deck_id):
             continue
     print("CARDS CREATED FROM FILE")
     return True
+
+# _ CELERY SCHEDULER 
+
+@celery.on_after_finalize.connect
+def print_time(sender, **kwargs):
+    sender.add_periodic_task(crontab("*/2 * * * *"), print_current_time_job.s(), name='PRINT CURRENT TIME')
+    sender.add_periodic_task(crontab("*/5 * * * *"), send_performance_reports.s(), name='SEND PERFORMANCE REPORT EMAILS')
+    sender.add_periodic_task(crontab("*/2 * * * *"), reminder_bot.s(), name='SEND REMINDER THROUGH GOOGLE CHAT')
+
+
+
+#_ HELPER FUNCTIONS 
 
 def qa_check(q, a, deck_id):
     cards = db.session.query(Card).filter(Card.deck_id == deck_id).all()

@@ -18,7 +18,7 @@ import datetime as dt
 
 
 def qa_check(q, a, deck_id):
-    cards = db.session.query(Card).filter(Deck.deck_id == deck_id).all()
+    cards = db.session.query(Card).filter(Card.deck_id == deck_id).all()
     for card in cards:
         if(q == card.question):
             return False
@@ -51,10 +51,21 @@ deck_output_fields = {
     "deck_name": fields.String,
 }
 
+user_output_fields = {
+    "user_id": fields.String,
+    "username": fields.String,
+}
+
 # _ User API
 
 
 class UserAPI(Resource):
+    @marshal_with(user_output_fields)
+    def get(self) :
+        users = db.session.query(User).all()
+        return users
+
+
     def post(self):
         ID = str(uuid.uuid4()).replace("-", "")
         data = request.json

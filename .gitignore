@@ -5,3 +5,5 @@ media
 *.rdb
 *.pdf
 celerybeat-schedule
+db_directory/db.sqlite3
+db_directory/backup_db.sqlite3
