@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report</title>
+</head>
+<style type="text/css">
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;500&display=swap');
+    html {
+        font-size: 63.5%;
+        font-family: 'Roboto', sans-serif;
+    }
+    
+    body {
+        font-size: 1.2rem;
+        font-weight: 300;
+        word-spacing: 2px;
+        letter-spacing: 0.8px;
+        line-height: 1.92rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: rgb(85, 85, 85);
+    }
+    
+    h1 {
+        font-size: 2.0rem;
+    }
+    
+    h2 {
+        font-size: 1.6rem;
+    }
+    
+    li {
+        list-style: none;
+        text-decoration: none;
+    }
+    
+    .rtable {
+        vertical-align: top;
+        width: 58rem;
+        border-collapse: collapse;
+        border-spacing: 0;
+        border-radius: 0.8rem;
+    }
+    
+    .rtable th {
+        font-size: 11px;
+        text-align: left;
+        text-transform: uppercase;
+        background: #f2f0e6;
+    }
+    
+    .rtable th,
+    .rtable td {
+        padding: 6px 12px;
+        border: 1px solid #d9d7ce;
+    }
+    .poor {
+        color: #fff;
+        background-color: #dc3545;
+    }
+    .average {
+        color: #000;
+        background-color: #ffc107
+    }
+    .good {
+        color: #fff;
+        background-color: #198754;
+    }
+    .excellent {
+        color: #fff;
+        background-color: #087990;
+    }
+</style>
+
+<body>
+    <div>
+        <h1>
+            Performance Report for {{ data.user_name }} | <span style="color: grey;">{{ data.month }}</span>
+        </h1>
+        <h2 style="margin: 4rem 0rem 2rem 0rem">Review : </h2>
+        <table class="rtable">
+            <tr>
+                <th>Deck</th>
+                <th>Recent Score</th>
+                <th>Percentage Change</th>
+                <th>Past 5 scores</th>
+                <th>All Time Average</th>
+                <th>Status</th>
+            </tr>
+            {% for d in data.deck_data %}
+            <tr>
+                <td>{{ d.deck_name }}</td>
+                <td>{{ d.recent_score }}</td>
+                <td>{{ d.percentage_change }}</td>
+                <td>{{ d.past_scores }}</td>
+                <td>{{ d.all_time_average }}</td>
+                {% if d.recent_score <= 50 %}
+                    <td class="poor">Poor</td>
+                {% elif d.recent_score > 50 and d.recent_score <= 70 %}
+                    <td class="average">Average</td>
+                {% elif d.recent_score > 70 and d.recent_score < 90 %} 
+                    <td class="good">Good</td>
+                {% else %}
+                    <td class"excellent">Excellent</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+
+        </table>
+        <p style="margin: 2rem 0rem 0rem 0rem;">* Recent score, percentage change, past 5 scores and all time average are in percentage</p>
+        <h2 style="margin: 6.4rem 0rem 2rem 0rem">Summary : </h2>
+        <ul>
+            <li>Total Number Of Questions Solved : {{ data.qa_data.total_total_q }}</li>
+            <li>Total Number Of Easy Questions Solved : {{ data.qa_data.total_easy_q }}</li>
+            <li>Total Number Of Medium Questions Solved : {{ data.qa_data.total_medium_q }}</li>
+            <li>Total Number Of Hard Questions Solved : {{ data.qa_data.total_hard_q }}</li>
+        </ul>
+    </div>
+</body>
+
+</html>
