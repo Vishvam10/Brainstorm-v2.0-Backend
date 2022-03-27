@@ -11,10 +11,8 @@ def format_message(template_file, data={}) :
         template = Template(file.read())
         return template.render(data=data)
 
-def create_pdf_report(data) :
-    # message = format_message("report.html", data)
+def create_pdf_report(data, name) :
     html = HTML(string=data)
-    file_name = "user_reports/" + str(uuid.uuid4()) + ".pdf"
-    
-    HTML(string=html).write_pdf('out.pdf')
+    file_name = ".reports" + name + ".pdf"
+    html.write_pdf(target=file_name)
     return file_name
