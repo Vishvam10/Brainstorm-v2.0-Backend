@@ -1,9 +1,12 @@
-from application.emails import format_message
+from gzip import READ
+from nis import cat
+from re import template
+from application.helpers import create_pdf_report, format_message
 from application.workers import celery
 from application.models import Deck, Review, User, Card
 from application.database import db
 
-from datetime import datetime
+import datetime as dt
 from flask import current_app as app
 from flask import jsonify
 
@@ -65,31 +68,96 @@ def send_email(to_address, subject, message, content="text", attachment_file=Non
     s.quit()
     return True
 
-@celery.task()
-def send_periodic_email() :
-    to = "sagowa2690@kuruapp.com"
-    s = "Periodic Email"
-    t = "./email_templates/welcome.html"
-    d = {
-        "user_name" : "Vishvam"
-    }
-    m = format_message(template_file=t, data=d)
-    msg = MIMEMultipart()
-    msg["From"] = SENDER_ADDRESS
-    msg["To"] = to
-    msg["Subject"] = s
-    msg.attach(MIMEText(m, "html"))
-    s = smtplib.SMTP(host=SMTP_SERVER_HOST, port=SMTP_SERVER_PORT)
-    s.login(SENDER_ADDRESS, SENDER_PASSWORD)
-    s.send_message(msg)
-    s.quit()
-    return True
+# @celery.task()
+# to_address, attachment_file, type
+@app.route("/api/spr")
+def send_performance_reports() :
+    month = str(dt.datetime.now().strftime("%B"))
+    users = db.session.query(User).all()
+    for user in users :
+        # For simplicity type = "pdf"
+        user_id = user.__dict__["user_id"]
+        user_name = user.__dict__["username"]
+        user_email = user.__dict__["email_id"]
+        subject = "Performance Report for {}".format(month)
+        decks = db.session.query(Deck).filter(Deck.user_id == user_id).all()
+        deck_data = []
+        qa_data = []
+        easy_q = 0
+        medium_q = 0
+        hard_q = 0
+        total_q = 0
+        for deck in decks :
+            deck_id = deck.__dict__["deck_id"]
+            review = db.session.query(Review).filter(Review.deck_id == deck_id).first();            
+            rev = review.__dict__
+            easy_q += rev["easy_q"]
+            medium_q += rev["medium_q"]
+            hard_q += rev["hard_q"]
+            total_q += rev["total_q"]
+            ps = rev["past_scores"].split(",")
+            past_scores = list(map(float, ps))
+            past_scores_list = []
+            for p in past_scores :
+                past_scores_list.append(round(p,2))
+            percentage_change = None
+            all_time_average = None
+            n = len(past_scores)
+            if(n > 0) :
+                all_time_average = round(sum(past_scores[1:]) / len(past_scores[1:]), 2)
+                if(n > 3) :
+                    percentage_change = round(100 * ((past_scores_list[-1] - past_scores_list[-2]) / past_scores_list[-2]), 20)
+            
+
+            d = {
+                "deck_name" : deck.__dict__["deck_name"],
+                "recent_score" : rev["score"],
+                "percentage_change" : percentage_change,
+                "past_scores" : ', '.join(str(x) for x in past_scores_list[-6:-1]),
+                "all_time_average" : all_time_average
+            }
+            deck_data.append(d)
+        qa_data = {
+            "total_easy_q" : easy_q,
+            "total_medium_q" : medium_q,
+            "total_hard_q" : hard_q,
+            "total_total_q" : total_q,
+        }
+        data = {
+            "deck_data" : deck_data,
+            "qa_data" : qa_data,
+            "user_name" : user_name,
+            "month" : month
+        }
+        print("TOTAL NUMBER OF DIFFERENT TYPE OF QUESTIONS : ", qa_data)
+        print("DATA : ", data)
+        
+        # 1. Convert data to HTML
+        template_file = "./email_templates/performance_report.html"
+        HTML_output = format_message(template_file, data=data)
+        # print("******************** FORMATTED MESSAGE **************************", HTML_output, type(HTML_output))
+       
+        # 2. Create PDF report
+        file_name = "{}_{}_{}".format(user_name, month, str(uuid.uuid4()))
+        attachment_file = create_pdf_report(HTML_output, file_name)
+        
+        # 3. Send as an email attachment
+        message = "Your monthly performance report is here"
+        send_email.delay(user_email, subject, message, content="text", attachment_file=attachment_file)
     
+    
+    return_value = {
+        "reached": True
+    }
+    return jsonify(return_value)
+        
+    
+
 
 @celery.on_after_finalize.connect
 def print_time(sender, **kwargs):
     sender.add_periodic_task(10.0, print_current_time_job.s(), name='PRINT TIME')
-    sender.add_periodic_task(10.0, send_periodic_email.s(), name='SEND EMAILS')
+    sender.add_periodic_task(10.0, send_performance_reports.s(), name='SEND EMAILS')
 
 @celery.task
 def convert_and_send_file(file_type, deck_id) :
@@ -117,7 +185,7 @@ def convert_and_send_file(file_type, deck_id) :
 @celery.task()
 def print_current_time_job():
     print("START")
-    now = datetime.now()
+    now = dt.datetime.now()
     print("now =", now)
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
     print("date and time =", dt_string) 
@@ -147,7 +215,6 @@ def parse_file(file, file_type, deck_id):
     print("CARDS CREATED FROM FILE")
     return True
 
-
 def qa_check(q, a, deck_id):
     cards = db.session.query(Card).filter(Card.deck_id == deck_id).all()
     for card in cards:
@@ -156,3 +223,5 @@ def qa_check(q, a, deck_id):
         if(a == card.answer):
             return False
     return True
+
+
