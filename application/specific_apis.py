@@ -152,8 +152,8 @@ def performance(user_id) :
     avg_score = 0   
     if(len(scores) > 1 ) :
         avg_score = round(float(sum(score['score'] for score in scores)) / len(scores), 2)
-    max_score = max(scores, key=lambda d: d['score'])
-    min_score = min(scores, key=lambda d: d['score'])
+    max_score = max(scores, key=lambda d: d['score'], default=0)
+    min_score = min(scores, key=lambda d: d['score'], default=0)
     revision_required = []
     for x in scores :
         s = round(x["score"],2)
@@ -190,4 +190,3 @@ def show_diff(seqm):
             raise RuntimeError
 
     return ''.join(output)
-

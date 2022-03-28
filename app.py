@@ -53,7 +53,7 @@ from application.specific_apis import *
 from application.base_apis import *
 
 
-api.add_resource(UserAPI, "/api/user")
+api.add_resource(UserAPI, "/api/user", "/api/user/<string:user_id>")
 api.add_resource(DeckAPI, "/api/deck", "/api/deck/<string:deck_id>")
 api.add_resource(CardAPI, "/api/card", "/api/card/<string:deck_id>")
 api.add_resource(ReviewAPI, "/api/review/<string:deck_id>")

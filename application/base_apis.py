@@ -56,6 +56,10 @@ deck_output_fields = {
 user_output_fields = {
     "user_id": fields.String,
     "username": fields.String,
+    "email_id": fields.String,
+    "phone_no": fields.String,
+    "webhook_url": fields.String,
+    "app_preferences": fields.String,
 }
 
 # _ User API
@@ -74,6 +78,8 @@ class UserAPI(Resource):
         password = data["password"]
         email = data["email"]
         phone = data["phone"]
+        webhook_url = ""
+        app_preferences = ""
 
         if username is None or username == "":
             raise BusinessValidationError(
@@ -90,7 +96,6 @@ class UserAPI(Resource):
 
         hashed_password = bcrypt.hashpw(
             password.encode('utf8'), bcrypt.gensalt())
-        print(hashed_password)
 
         user = db.session.query(User).filter(User.username == username).first()
         if user:
@@ -98,7 +103,7 @@ class UserAPI(Resource):
                 status_code=400, error_message="Duplicate user")
 
         new_user = User(user_id=ID, username=username,
-                        password=hashed_password, email_id=email, phone_no=phone)
+                        password=hashed_password, email_id=email, phone_no=phone, webhook_url=webhook_url, app_preferences=app_preferences)
         db.session.add(new_user)
         db.session.commit()
 
@@ -107,6 +112,74 @@ class UserAPI(Resource):
             "status": 200,
             "user_id": ID,
             "user_name": username,
+        }
+
+        return jsonify(return_value)
+
+    @marshal_with(user_output_fields)
+    def put(self, user_id) :
+        data = request.json
+        username = data["user_name"]
+        email_id = data["email_id"]
+        phone_no = data["phone_no"]
+        webhook_url = data["webhook_url"]
+        app_preferences = data["app_preferences"]
+
+        if(not user_id or not username or not email_id or not phone_no or not webhook_url or not app_preferences) :
+            raise BusinessValidationError(status_code=400, error_message="One or more fields are missing")
+
+        user = db.session.query(User).filter(User.user_id == user_id).first()
+        
+        if(user is None):
+            raise BusinessValidationError(status_code=400, error_message="Invalid user ID or no such user exists")
+
+        user_list = db.session.query(User).all()
+        
+        for u in user_list :
+            ud = u.__dict__
+            if(user.username != username and ud.username == username) :
+                raise BusinessValidationError(status_code=400, error_message="Username already exists")
+            if(user.email_id != email_id and ud.email_id == email_id) :
+                raise BusinessValidationError(status_code=400, error_message="Email ID already exists")
+            if(user.phone_no != phone_no and ud.phone_no == phone_no) :
+                raise BusinessValidationError(status_code=400, error_message="Phone no already exists")
+
+
+        user.username = username
+        user.email_id = email_id
+        user.phone_no = phone_no
+        user.webhook_url = webhook_url
+        user.app_preferences = app_preferences
+
+        db.session.add(user)
+        db.session.commit()
+        return user
+
+    def delete(self, user_id) :
+        decks = db.session.query(Deck).filter(Deck.user_id == user_id).all()
+        for deck in decks :
+            deck_id = deck.__dict__["deck_id"]
+            
+            # 1. Delete the cards
+            db.session.query(Card).where(Card.deck_id == deck_id).delete(synchronize_session=False)
+            db.session.commit()
+            
+            # 2. Delete the reviews
+            db.session.query(Review).where(Review.deck_id == deck_id).delete(synchronize_session=False)
+            db.session.commit()
+
+            # 3. Delete the decks
+            db.session.query(Deck).filter(Deck.deck_id == deck_id).delete(synchronize_session=False)
+            db.session.commit()
+        
+        # 4. Delete the user
+        db.session.query(User).filter(User.user_id == user_id).delete(synchronize_session=False)
+        db.session.commit()
+
+        return_value = {
+            "user_id": user_id,
+            "message": "User deleted",
+            "status": 200,
         }
 
         return jsonify(return_value)

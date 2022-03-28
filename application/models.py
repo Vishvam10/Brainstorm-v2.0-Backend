@@ -8,9 +8,11 @@ class User(db.Model):
     password = db.Column(db.String, unique=True, nullable=False)
     email_id = db.Column(db.String, unique=True, nullable=False)
     phone_no = db.Column(db.String, unique=True, nullable=False)
+    webhook_url = db.Column(db.String, unique=True, nullable=True)
+    app_preferences = db.Column(db.String, nullable=False)
 
     def to_dict(self):
-        return dict(id=self.user_id, username=self.username, password=self.password, email_id=self.email_id, phone_no=self.phone_no)
+        return dict(id=self.user_id, username=self.username, password=self.password, email_id=self.email_id, phone_no=self.phone_no, webhook_url=self.webhook_url, app_preferences=self.app_preferences)
 
 
 class Deck(db.Model):
