@@ -128,8 +128,8 @@ def download_file(deck_id):
 
     return jsonify(return_value)
 
-@app.route('/sample', methods=["GET"])
-def sample() :
+@app.route('/api/send_performance_report', methods=["GET"])
+def sample_send_performance_reports() :
     send_performance_reports.delay()
     
     return_value = {

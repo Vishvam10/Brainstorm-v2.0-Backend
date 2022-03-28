@@ -263,8 +263,6 @@ def parse_file(file, file_type, deck_id):
     print("CARDS CREATED FROM FILE")
     return True
 
-# _ CELERY TASKS - For the cleanup 
-# TODO
 
 # _ CELERY SCHEDULER 
 
