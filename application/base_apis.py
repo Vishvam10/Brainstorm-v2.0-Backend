@@ -1,3 +1,4 @@
+from crypt import methods
 from application.validation import BusinessValidationError
 from application.models import Deck, Review, User, Card
 from application.database import db
@@ -7,6 +8,8 @@ from flask_jwt_extended import jwt_required
 from flask_restful import fields, marshal_with
 from flask_restful import Resource
 from flask import jsonify, request
+
+from flask import current_app as app
 
 from app import cache
 
@@ -67,9 +70,9 @@ user_output_fields = {
 
 class UserAPI(Resource):
     @marshal_with(user_output_fields)
-    def get(self) :
-        users = db.session.query(User).all()
-        return users
+    def get(self, user_id) :
+        user = db.session.query(User).filter(User.user_id == user_id).first()
+        return user
 
     def post(self):
         ID = str(uuid.uuid4()).replace("-", "")
@@ -122,10 +125,9 @@ class UserAPI(Resource):
         username = data["user_name"]
         email_id = data["email_id"]
         phone_no = data["phone_no"]
-        webhook_url = data["webhook_url"]
-        app_preferences = data["app_preferences"]
+    
 
-        if(not user_id or not username or not email_id or not phone_no or not webhook_url or not app_preferences) :
+        if(not user_id or not username or not email_id or not phone_no) :
             raise BusinessValidationError(status_code=400, error_message="One or more fields are missing")
 
         user = db.session.query(User).filter(User.user_id == user_id).first()
@@ -137,19 +139,18 @@ class UserAPI(Resource):
         
         for u in user_list :
             ud = u.__dict__
-            if(user.username != username and ud.username == username) :
+            print("********** USER **********", ud)
+            if(user.username != username and ud["username"] == username) :
                 raise BusinessValidationError(status_code=400, error_message="Username already exists")
-            if(user.email_id != email_id and ud.email_id == email_id) :
+            if(user.email_id != email_id and ud["email_id"] == email_id) :
                 raise BusinessValidationError(status_code=400, error_message="Email ID already exists")
-            if(user.phone_no != phone_no and ud.phone_no == phone_no) :
+            if(user.phone_no != phone_no and ud["phone_no"] == phone_no) :
                 raise BusinessValidationError(status_code=400, error_message="Phone no already exists")
 
 
         user.username = username
         user.email_id = email_id
         user.phone_no = phone_no
-        user.webhook_url = webhook_url
-        user.app_preferences = app_preferences
 
         db.session.add(user)
         db.session.commit()
@@ -183,6 +184,98 @@ class UserAPI(Resource):
         }
 
         return jsonify(return_value)
+
+
+@app.route('/api/user/all', methods=["GET"])
+def get_all_users() :
+    users = db.session.query(User).all()
+    data = []
+    for u in users : 
+        data.append((u.__dict__["username"], u.__dict__["user_id"]))
+    return_value = {
+        "data" : data
+    }
+    return jsonify(return_value)
+
+@app.route('/api/user/update_user_preferences/<string:user_id>', methods=["GET","PUT"])
+def user_preferences(user_id) :
+    if(request.method == "GET") :
+        user = db.session.query(User).filter(User.user_id == user_id).first()    
+        if(user is None):
+            raise BusinessValidationError(status_code=400, error_message="Invalid user ID or no such user exists")
+        
+        data = {
+            "webhook_url" : user.webhook_url,
+            "user_preferences" : user.user_preferences
+        }
+        return jsonify(data)
+
+    if(request.method == "PUT") :
+        data = request.json
+        webhook_url = data["webhook_url"]
+        user_preferences = data["user_preferences"]
+        
+        user = db.session.query(User).filter(User.user_id == user_id).first()
+            
+        if(user is None):
+            raise BusinessValidationError(status_code=400, error_message="Invalid user ID or no such user exists")
+
+        user.webhook_url = webhook_url
+        user.user_preferences = user_preferences
+        
+
+        db.session.add(user)
+        db.session.commit()
+
+        return_value = {
+            "message" : "Updated user preferences"
+        }
+
+        return jsonify(return_value)
+
+
+
+
+
+@app.route('/api/password_reset/<string:user_id>', methods=["POST"])
+def reset_password(user_id) :
+    data = request.json
+    current_password = data["current_password"]
+    new_password = data["new_password"]
+    
+    print("***************** OLD PASSWORD *****************", current_password)
+    if current_password is None or current_password == "":
+        raise BusinessValidationError(
+            status_code=400, error_message="Current Password is required")
+    if new_password is None or new_password == "":
+        raise BusinessValidationError(
+            status_code=400, error_message="New Password is required")
+    
+    user = db.session.query(User).filter(User.user_id == user_id).first()
+
+    hashed_password = user.password
+    string_password = hashed_password.decode('utf8')
+    print("***************** OLD HASHED PASSWORD *****************", string_password)
+    if(not bcrypt.checkpw(current_password.encode('utf8'), string_password.encode('utf8'))):
+        raise BusinessValidationError(
+            status_code=400, error_message="Incorrect Password")
+    
+    new_hashed_password = bcrypt.hashpw(new_password.encode('utf8'), bcrypt.gensalt())
+    user.password = new_hashed_password
+    print("***************** NEW PASSWORD *****************", new_hashed_password)
+    db.session.add(user)
+    db.session.commit()
+
+    return_value = {
+        "message": "Password Changed Successfully",
+        "status": 200,
+        "new_password" : new_password
+    }
+
+    return jsonify(return_value)
+
+
+
 
 # _ Deck API
 

@@ -61,6 +61,7 @@ def login():
     }
     return jsonify(return_value)
 
+
 #+ Uses Celery Jobs 
 
 @app.route('/api/upload', methods=["POST"])
