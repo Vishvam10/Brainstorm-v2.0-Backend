@@ -47,11 +47,11 @@ def create_app() :
 
     return app, api, celery, cache
 
+
 app, api, celery, cache = create_app()
 
 from application.specific_apis import *
 from application.base_apis import *
-
 
 api.add_resource(UserAPI, "/api/user", "/api/user/<string:user_id>")
 api.add_resource(DeckAPI, "/api/deck", "/api/deck/<string:deck_id>")

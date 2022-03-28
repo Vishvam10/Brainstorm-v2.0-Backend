@@ -69,8 +69,6 @@ def login():
 def upload():
     deck_id = request.form.get("deck_id")
     file = request.files.get("File")
-    print(deck_id)
-    print(file)
     if file.filename == '':
         return "ENTER FILENAME"
     if file and allowed_file(file.filename):
@@ -102,7 +100,23 @@ def upload():
 @jwt_required()
 def download_file(deck_id):
     data = request.json
-    file_type = data["file_type"]
+    user_id = data["user_id"]
+
+    user = db.session.query(User).filter(User.user_id == user_id).first()
+    upr = user.__dict__["user_preferences"]
+    if(upr is None) :
+        file_type = "csv" 
+    else :
+        u_pref = ast.literal_eval(upr)
+        report_format = u_pref["export_format"]
+        if(report_format == "csv") :
+            file_type = "csv"
+        elif(report_format == "excel") :
+            file_type = "xlsx"
+        else :
+            file_type = "xlsx"
+
+    
     fn = convert_and_send_file.delay(file_type=file_type, deck_id=deck_id).get()
     if(fn != "Invalid File Type") :
         return send_file(fn, mimetype='text/csv', attachment_filename=fn, as_attachment=True)
@@ -114,9 +128,9 @@ def download_file(deck_id):
     return jsonify(return_value)
 
 @app.route('/sample', methods=["GET"])
-@jwt_required()
 def sample() :
-    setup_periodic_tasks.delay()
+    send_performance_reports.delay()
+    
     return_value = {
         "message": "Reached" 
     }

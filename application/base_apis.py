@@ -235,8 +235,6 @@ def user_preferences(user_id) :
 
 
 
-
-
 @app.route('/api/password_reset/<string:user_id>', methods=["POST"])
 def reset_password(user_id) :
     data = request.json

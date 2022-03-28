@@ -1,4 +1,5 @@
 from gzip import READ
+from importlib.resources import contents
 from nis import cat
 from re import template
 from application.helpers import create_pdf_report, format_message
@@ -26,6 +27,7 @@ import pandas as pd
 import numpy as np
 import uuid
 import os
+import ast
 
 from celery.schedules import crontab
 print("crontab ", crontab)
@@ -82,6 +84,7 @@ def send_performance_reports() :
         user_id = user.__dict__["user_id"]
         user_name = user.__dict__["username"]
         user_email = user.__dict__["email_id"]
+        upr = user.__dict__["user_preferences"]
         subject = "Performance Report for {}".format(month)
         decks = db.session.query(Deck).filter(Deck.user_id == user_id).all()
         deck_data = []
@@ -132,75 +135,100 @@ def send_performance_reports() :
             "user_name" : user_name,
             "month" : month
         }
-        print("TOTAL NUMBER OF DIFFERENT TYPE OF QUESTIONS : ", qa_data)
+      
         print("DATA : ", data)
         
         # 1. Convert data to HTML
         template_file = "./email_templates/performance_report.html"
         HTML_output = format_message(template_file, data=data)
        
-        # 2. Create PDF report
-        ID = str(uuid.uuid4()).replace("-", "")
-        file_name = "{}_{}_{}".format(user_name, month, ID)
-        updated_filename = os.path.join(media, file_name)
-        attachment_file = create_pdf_report(HTML_output, updated_filename)
-        print("UPDATED FILENAME : ", updated_filename)
-        # 3. Send as an email attachment
-        message = "Your monthly performance report is here"
-        send_email.delay(user_email, subject, message, content="text", attachment_file=attachment_file)
+        if(upr is not None) :
+            u_pref = ast.literal_eval(upr)
+            report_format = u_pref["report_format"]
+            if(report_format == "pdf") :
+                # 2. Create PDF report
+                ID = str(uuid.uuid4()).replace("-", "")
+                file_name = "{}_{}_{}".format(user_name, month, ID)
+                updated_filename = os.path.join(media, file_name)
+                attachment_file = create_pdf_report(HTML_output, updated_filename)
+                
+                # 3. Send as an email attachment
+                print("UPDATED FILENAME : ", updated_filename)
+                message = "Your monthly performance report is here"
+                send_email.delay(user_email, subject, message, content="text", attachment_file=attachment_file)
+            else :
+                message = HTML_output
+                send_email.delay(user_email, subject, message, content="html", attachment_file=None)
+        else :
+            ID = str(uuid.uuid4()).replace("-", "")
+            file_name = "{}_{}_{}".format(user_name, month, ID)
+            updated_filename = os.path.join(media, file_name)
+            attachment_file = create_pdf_report(HTML_output, updated_filename)
+            
+            print("UPDATED FILENAME : ", updated_filename)
+            message = "Your monthly performance report is here"
+            send_email.delay(user_email, subject, message, content="text", attachment_file=attachment_file)
     
     return True
 
 @celery.task
 def reminder_bot() :
-    
-    # - In the future, should get the webhook URL from the user while signing up
-    webhook_url = "https://chat.googleapis.com/v1/spaces/AAAARWvCKTU/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=tmfkrmHHaNuiWqrH1mG8f2panUvcODZtInv2b5MwHVM%3D"
+    users = db.session.query(User).all()
+    for user in users :
+        user_id = user.__dict__["user_id"]
+        user_name = user.__dict__["username"]
+        webhook_url = user.__dict__["webhook_url"]
+
+        if(webhook_url is None) :
+            continue
+
+        # Sample Webhook URL 
+        # webhook_url = "https://chat.googleapis.com/v1/spaces/AAAARWvCKTU/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=tmfkrmHHaNuiWqrH1mG8f2panUvcODZtInv2b5MwHVM%3D"
 	
-    now = dt.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    message = "Hello World - {}".format(now)
-    
-    bot_message = {
-        'text' : message
-    }
+        now = dt.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        message = "Hello World - {}".format(now)
+        
+        bot_message = {
+            'text' : message
+        }
 
-    message_headers = {'Content-Type': 'application/json; charset=UTF-8'}
+        message_headers = {'Content-Type': 'application/json; charset=UTF-8'}
 
-    http_obj = Http()
+        http_obj = Http()
 
-    http_obj.request(
-        uri=webhook_url,
-        method='POST',
-        headers=message_headers,
-        body=dumps(bot_message),
-    )
-    return_value = {
-        "message": "Message sent."
-    }
+        http_obj.request(
+            uri=webhook_url,
+            method='POST',
+            headers=message_headers,
+            body=dumps(bot_message),
+        )
+        
     return True
 
 @celery.task
 def convert_and_send_file(file_type, deck_id) :
-    if(file_type == "csv" or file_type == "xlsx") :
-        f = "QA_Export_" + deck_id + "." + file_type
-        fn = media + "/" + f
-        print("FILE NAME : ", fn)
+    f = "QA_Export_" + deck_id + "." + file_type
+    fn = media + "/" + f
+    print("FILE NAME : ", fn)
 
-        # Create a file out of the deck
-        cards = db.session.query(Card).filter(Card.deck_id == deck_id).all()
-        
-        data = []
-        for card in cards :
-            card_data = card.__dict__
-            question = card_data["question"]
-            answer = card_data["answer"]
-            data.append({question, answer})
+    # Create a file out of the deck
+    cards = db.session.query(Card).filter(Card.deck_id == deck_id).all()
+    
+    data = []
+    for card in cards :
+        card_data = card.__dict__
+        question = card_data["question"]
+        answer = card_data["answer"]
+        data.append({question, answer})
 
-        df  = pd.DataFrame.from_records(data)
-        df.columns = ["Question", "Answer"]
+    df  = pd.DataFrame.from_records(data)
+    df.columns = ["Question", "Answer"]
+    if(file_type == "csv") :
         df.to_csv(fn, index=False)   
-        return fn
-    return "Invalid File Type"
+    else :
+        df.to_excel(fn, index=False)   
+
+    return fn
 
 @celery.task()
 def print_current_time_job():
@@ -262,5 +290,3 @@ def qa_check(q, a, deck_id):
         if(a == card.answer):
             return False
     return True
-
-
