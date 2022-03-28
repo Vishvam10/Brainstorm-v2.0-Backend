@@ -179,7 +179,7 @@ class UserAPI(Resource):
 
         return_value = {
             "user_id": user_id,
-            "message": "User deleted",
+            "message": "User deleted succesfully",
             "status": 200,
         }
 
