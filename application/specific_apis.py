@@ -156,7 +156,7 @@ def send() :
 
 
 @app.route('/api/performance/<string:user_id>', methods=["GET"])
-@cache.memoize(50)
+@cache.memoize(10)
 def performance(user_id) :
     scores = []
     decks = db.session.query(Deck).filter(Deck.user_id == user_id).all()

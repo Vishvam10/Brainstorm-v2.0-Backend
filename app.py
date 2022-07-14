@@ -59,4 +59,4 @@ api.add_resource(CardAPI, "/api/card", "/api/card/<string:deck_id>")
 api.add_resource(ReviewAPI, "/api/review/<string:deck_id>")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run()

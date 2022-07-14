@@ -186,7 +186,7 @@ def reminder_bot() :
         # webhook_url = "https://chat.googleapis.com/v1/spaces/AAAARWvCKTU/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=tmfkrmHHaNuiWqrH1mG8f2panUvcODZtInv2b5MwHVM%3D"
 	
         now = dt.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        message = "Hello World - {}".format(now)
+        message = "Time to revise ! {} -  Brainstorm".format(now)
         
         bot_message = {
             'text' : message
@@ -268,7 +268,7 @@ def parse_file(file, file_type, deck_id):
 
 @celery.on_after_finalize.connect
 def print_time(sender, **kwargs):
-    sender.add_periodic_task(crontab("*/2 * * * *"), print_current_time_job.s(), name='PRINT CURRENT TIME')
+    sender.add_periodic_task(crontab("* * * * *"), print_current_time_job.s(), name='PRINT CURRENT TIME')
 
     # Monthly Report Generation
     sender.add_periodic_task(crontab("0 0 1 * *"), send_performance_reports.s(), name='SEND PERFORMANCE REPORT EMAILS')
